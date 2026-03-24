@@ -1,0 +1,18 @@
+{
+	"folders":
+	[
+		{ "path": "." },
+		{ "path": "C:\\Tools\\odin\\core" },
+		{ "path": "C:\\Tools\\odin\\base" },
+	],
+	"build_systems":
+	[
+		{
+			"name": "Run",
+			"cmd": "odin run . -out:BAMolruExtractor.exe",
+			"working_dir": "$folder",
+			"file_regex": "^(.+)\\(([0-9]+):([0-9]+)\\) (.+)$",
+			"syntax": "Packages/User/Build Output.sublime-syntax",
+		}
+	],
+}
