@@ -2,16 +2,16 @@
 
 A tool to extract assets from Blue Archive Steam version.
 
-[TZN Kozeki](https://github.com/Ascellayn/TSN_Kozeki) used as base reference for understanding Blue Archive's media catalog file structure.
+[TSN Kozeki](https://github.com/Ascellayn/TSN_Kozeki) used as base reference for understanding Blue Archive's media catalog file structure.
 
-### Usage
+## Usage
 
 1. Download [MolruExtractor](https://github.com/Apis035/MolruExtractor/releases/latest).
 2. Move the downloaded executable into Blue Archive folder.
 3. Run `MolruExtractor.exe`, wait for it to finish.
 4. Extracted file can be found in `MolruExtract` folder.
 
-### Feature comparison
+## Feature comparison
 
 | MolruExtractor | Kozeki |
 | - | - |
@@ -27,7 +27,7 @@ A tool to extract assets from Blue Archive Steam version.
 | ❌ No repacking feature planned                           | ✅ Plans to have repacking feature |
 | ➖ Unsafe extraction algorithm                            | ✅ Uses regex to validate files to be extracted |
 
-### Performance comparison
+## Performance comparison
 
 Measured by running both program 3 times. Best time is picked. MolruExtractor run with `-q` flag, Kozeki run with `--limit-logs` flag.
 
