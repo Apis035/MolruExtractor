@@ -1,4 +1,4 @@
-#+vet explicit-allocators 
+#+vet explicit-allocators
 package main
 
 import "base:runtime"
@@ -101,22 +101,21 @@ DeleteCatalog :: proc(catalog: Catalog) {
 }
 
 PrintCatalog :: proc(catalog: Catalog) {
-	limit := 0
 	for key, entry in catalog {
 		fmt.println(key, "{")
 		for value in entry {
 			fmt.println("    ", value)
 		}
 		fmt.println("}")
-		limit += 1
-		if limit > 20 do break
 	}
 }
+
+CACHED_CATALOG_FILE :: "catalogdata.json"
 
 SaveCatalog :: proc(catalog: Catalog) {
 	catalogData := Assert(json.marshal(catalog, {spec = .SJSON, pretty = true}, context.allocator), "Json marshall failed")
 	defer delete(catalogData, context.allocator)
-	Assert(os.write_entire_file("catalogdata.json", catalogData), "Fail to save cached catalog")
+	Assert(os.write_entire_file(CACHED_CATALOG_FILE, catalogData), "Fail to save cached catalog")
 }
 
 // --------------------------------------------------------
@@ -328,8 +327,6 @@ main :: proc() {
 	defer delete(rawCatalog, context.allocator)
 
 	fmt.println("Parsing catalog data...")
-	now := time.now()
-
 	BeginMeasure()
 	catalog := ParseCatalog(rawCatalog)
 	defer DeleteCatalog(catalog)
@@ -343,8 +340,8 @@ main :: proc() {
 		SaveCatalog(catalog)
 	}
 
-	BeginMeasure()
 	fmt.println("Extracting files...")
+	BeginMeasure()
 	Extract(catalog)
 	EndMeasure("Extracting")
 }
