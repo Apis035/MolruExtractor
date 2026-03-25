@@ -2,7 +2,6 @@
 package main
 
 import "base:runtime"
-import "core:encoding/json"
 import "core:fmt"
 import "core:mem"
 import "core:os"
@@ -113,9 +112,18 @@ PrintCatalog :: proc(catalog: Catalog) {
 CACHED_CATALOG_FILE :: "catalogdata.json"
 
 SaveCatalog :: proc(catalog: Catalog) {
-	catalogData := Assert(json.marshal(catalog, {spec = .SJSON, pretty = true}, context.allocator), "Json marshall failed")
-	defer delete(catalogData, context.allocator)
-	Assert(os.write_entire_file(CACHED_CATALOG_FILE, catalogData), "Fail to save cached catalog")
+	b := strings.builder_make(context.allocator)
+	defer strings.builder_destroy(&b)
+
+	for key, entry in catalog {
+		fmt.sbprintfln(&b, "%s: [", key,)
+		for value in entry {
+			fmt.sbprintfln(&b, "\t\"%s\"", value)
+		}
+		fmt.sbprintln(&b, "]")
+	}
+
+	Assert(os.write_entire_file(CACHED_CATALOG_FILE, strings.to_string(b)), "Fail to save cached catalog")
 }
 
 // --------------------------------------------------------
