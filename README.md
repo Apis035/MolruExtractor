@@ -13,32 +13,32 @@ A tool to extract assets from Blue Archive Steam version.
 
 ## Feature comparison
 
-| MolruExtractor | Kozeki |
-| - | - |
-| ✅ Native binary                                          | ➖ Requires Python to run |
-| ✅ Run on any OS (manual compiling)                       | ✅ Run on any OS |
-| ✅ No additional dependencies                             | ➖ Needs installing TSN Abstractor separately |
-| ✅ Having a release as accessibility (for non-tech users) | ➖ Download/clone repository to use |
-| ✅ Single executable                                      | ➖ Multiple files with its dependencies |
-| ✅ Selective extraction<br>Can choose to skip extracting BGM, voice, or images. (See options with `-?` flag) | ❌ Cannot skip extracting specific files |
-| ✅ Extract with file name                                 | ✅ Extract with file name (requires cache) |
-| ✅ Fast caching process                                   | ❌ Takes forever to create cache (on Windows)<br>Can use the cache provied by the author instead, but needs to wait for the author to update cache for every game update. |
-| ✅ Does not need to save cached catalog data              | ❌ Needs saved cache file for faster extraction process |
-| ❌ No repacking feature planned                           | ✅ Plans to have repacking feature |
-| ➖ Unsafe extraction algorithm                            | ✅ Uses regex to validate files to be extracted |
+| | MolruExtractor | | [Kozeki](https://github.com/Ascellayn/TSN_Kozeki) |
+| - | - | - | - |
+| ✅ | Native binary | ➖ | Requires Python to run |
+| ✅ | Having a release file as accessibility (for non-tech users) | ➖ | Download/clone repository to use |
+| ✅ | No additional dependencies | ➖ | Needs installing TSN Abstractor separately |
+| ✅ | Single executable | ➖ | Multiple files with its dependencies |
+| ✅ | Per-category extraction<br>Can choose to skip extracting BGM, voice, or images. (See options with `-?` flag) | ❌ | Only able to extract everything at once |
+| ✅ | Fast caching process | ❌ | Takes forever to create cache (on Windows)<br>Can use cache provied by the author instead, but needs to wait for the author to update cache for every game update. |
+| ✅ | Does not need to save cached catalog data | ❌ | Needs saved cache file for faster extraction process |
+| ✅ | Extract with file name | ✅ | Extract with file name (with cache) |
+| ✅ | Run on any OS (manual compiling) | ✅ | Run on any OS |
+| ❌ | No repacking feature planned | ✅ | Plans to have repacking feature |
+| ➖ | Unsafe extraction algorithm | ✅ | Uses regex to validate files to be extracted |
 
 ## Performance comparison
 
-Measured by running both program 3 times. Best time is picked. MolruExtractor run with `-q` flag, Kozeki run with `--limit-logs` flag.
+Performance is evaluated by running each program 3 times with identical flags (`-q` and `--limit-logs`), the fastest execution time is selected for comparison. Running on i5-6300U @ 2.40GHz.
 
 |   | Creating cache | Extracting | Memory usage |
 | - | - | - | - | 
-| MolruExtractor | 0.04s                                 | 32s   | 300-460 MB, constant (uses arena memory) |
-| Kozeki         | ??? (stopped measuring after 3 hours) | 1m40s | 20-400 MB, up and down |
+| MolruExtractor | 0.04s | 32s | 300-460 MB, constant (uses arena memory) |
+| Kozeki | ??? (stopped measuring after 3 hours) | 1m40s | 20-400 MB, up and down |
 
 ### Even more faster?
 
-You can get even more performance by building MolruExtractor locally. This will create an executable optimized for your CPU, also disables extra safety checking for faster procesing.
+You can get more performance by building MolruExtractor locally. This will create an executable optimized for your CPU and disable extra safety checking in trade for performance.
 
 1. Have [Odin](https://odin-lang.org/) installed on your system.
 2. Clone this repository.
