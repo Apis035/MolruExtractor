@@ -16,7 +16,7 @@ A tool to extract assets from Blue Archive Steam version.
 | | MolruExtractor | | [Kozeki](https://github.com/Ascellayn/TSN_Kozeki) |
 | - | - | - | - |
 | ✅ | Native binary | ➖ | Requires Python to run |
-| ✅ | Having a release file as accessibility (for non-tech users) | ➖ | Download/clone repository to use |
+| ✅ | Having a release file for easy usage | ➖ | Download/clone repository to use |
 | ✅ | No additional dependencies | ➖ | Needs installing TSN Abstractor separately |
 | ✅ | Single executable | ➖ | Multiple files with its dependencies |
 | ✅ | Per-category extraction<br>Can choose to skip extracting BGM, voice, or images. (See options with `-?` flag) | ❌ | Only able to extract everything at once |
@@ -33,8 +33,8 @@ Performance is evaluated by running each program 3 times with identical flags (`
 
 |   | Creating cache | Extracting | Memory usage |
 | - | - | - | - | 
-| MolruExtractor | 0.04s | 32s | 300-460 MB, constant (uses arena memory) |
-| Kozeki | ??? (stopped measuring after 3 hours) | 1m40s | 20-400 MB, up and down |
+| MolruExtractor | 0.02s | 24s | Constant 300-460 MB |
+| [Kozeki](https://github.com/Ascellayn/TSN_Kozeki) | ??? (stopped measuring after 3 hours) | 1m40s | Variable 20-400 MB |
 
 ### Even more faster?
 
@@ -43,8 +43,7 @@ You can get more performance by building MolruExtractor locally. This will creat
 1. Have [Odin](https://odin-lang.org/) installed on your system.
 2. Clone this repository.
 3. Run `build.bat`, this creates `MolruExtractorFast.exe`.
-4. Move generated executable to Blue Archive folder.
-5. Run. Optionally run with `-q` flag to disable logging (Significantly improve performance).
+4. Move generated executable into Blue Archive folder and run it.
 
 ### License
 
