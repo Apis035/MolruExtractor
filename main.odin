@@ -63,30 +63,28 @@ CatalogEntry :: [dynamic]string
 ParseCatalog :: proc(data: []byte) -> (catalog: Catalog) {
 	skip: bool
 	data := data[9:]
-
-	for {
+	for len(data) > 12 {
 		length := data[0]
-		data = data[4:]
-		if skip = !skip; skip {
-			data = data[length+5:]
-		} else {
-			if int(length+12) >= len(data) do break
-			defer data = data[length+12:]
+		data    = data[4:]
 
-			dir, file := os.split_path(string(data[:length]))
+		skip = !skip
+		defer data = skip ? data[length+5:] : data[length+12:]
+		if skip do continue
 
-			if skipImage && strings.contains(dir, "UIs") do continue
-			if skipBgm   && strings.contains(dir, "BGM") do continue
-			if skipVoice && (strings.contains(dir, "VOC_JP") || strings.contains(dir, "VOC_KR")) do continue
+		value := string(data[:length])
+		id    := data[length]
 
-			id  := FolderId(data[length])
-			key := Assert(os.join_path({FolderPath[id], dir}, context.allocator), "Fail joining path")
+		if skipImage && strings.contains(value, "UIs") do continue
+		if skipBgm   && strings.contains(value, "BGM") do continue
+		if skipVoice && strings.contains(value, "VOC") do continue
 
-			if catalog[key] == nil {
-				catalog[key] = make(CatalogEntry, context.allocator)
-			}
-			append(&catalog[key], file)
+		dir, file := os.split_path(value)
+		key := Assert(os.join_path({FolderPath[FolderId(id)], dir}, context.allocator), "Fail joining path")
+
+		if catalog[key] == nil {
+			catalog[key] = make(CatalogEntry, context.allocator)
 		}
+		append(&catalog[key], file)
 	}
 	return catalog
 }
@@ -132,15 +130,19 @@ BytesEqual :: proc(data: []byte, b: string) -> bool {
 	return string(data[:len(b)]) == b
 }
 
-FindBytes :: proc(data: []byte, b: string) -> int {
+// Skip several bytes for faster searching. 159 breaks.
+SKIP_LENIENCY :: 158 * mem.Byte
+
+FindBytes :: proc(data: []byte, b: string, offset := 0) -> (int, bool) {
+	skip := SKIP_LENIENCY + len(b)
+	data := data[skip:]
 	for _, i in data {
 		if i + len(b) > len(data) do break
-
 		if BytesEqual(data[i:], b) {
-			return i
+			return i + skip + offset, true
 		}
 	}
-	return -1
+	return -1, false
 }
 
 // --------------------------------------------------------
@@ -164,6 +166,12 @@ Iterator :: struct {
 	last: bool,
 }
 
+CreateIterator :: proc(data: []byte) -> (it: Iterator) {
+	it = {data = data, next = 53}
+	GetData(&it) // identify data
+	return
+}
+
 /*
 `GetData` does a very quick check without validating the data further.
 
@@ -185,73 +193,52 @@ I write this comment so future me can understand what code did I wrote here. ðŸ™
 GetData :: proc(it: ^Iterator) -> (found: Found, ok: bool) {
 	if it.last do return
 
-	if it.type == .Unknown {
-		it.next = 53
-		it.type =
-			BytesEqual(it.data[53:], "\x89PNG")      ? .PNG :
-			BytesEqual(it.data[53:], "\xFF\xD8")     ? .JPG :
-			BytesEqual(it.data[53:], "OggS\x00\x02") ? .OGG : .Unknown
-	}
+	found.begin  = it.next
+	found.end    = it.next
+	found.format = it.type
 
-    // TODO: Clean those repetetive returns
+	end: int
+	scan := it.data[it.next:]
+	defer it.next = found.end
 
 	switch it.type {
-    case .Unknown:
-        panic("Unknown molru file format")
+	case .Unknown:
+		switch {
+			case BytesEqual(scan, "\x89PNG"):      it.type  = .PNG
+			case BytesEqual(scan, "\xFF\xD8"):     it.type  = .JPG
+			case BytesEqual(scan, "OggS\x00\x02"): it.type  = .OGG
+			case: panic("Unknown molru data file format")
+		}
+		return {}, false
 
 	case .PNG:
-		end := FindBytes(it.data[it.next+4:], "\x89PNG")
-		if end == -1 {
-			end     = FindBytes(it.data[it.next+4:], "IEND") + 8
-			it.last = true
-		}
-		found.format = .PNG
-		found.begin  = it.next
-		found.end    = it.next + end
-		it.next     += end + 4
-		return found, true
+		end, ok = FindBytes(scan, "\x89PNG")
+		if !ok do end, it.last = FindBytes(scan, "IEND", 8)
+		found.end += end
 
 	case .JPG:
-		end := FindBytes(it.data[it.next+2:], "\xFF\xD9\xFF\xD8")
-		if end == -1 {
-			end     = FindBytes(it.data[it.next+2:], "\xFF\xD9")
-			it.last = true
-		}
-		end         += 2 + 2
-		found.format = .JPG
-		found.begin  = it.next
-		found.end    = it.next + end
-		it.next     += end
-		return found, true
+		end, ok = FindBytes(scan, "\xFF\xD9\xFF\xD8", 2)
+		if !ok do end, it.last = FindBytes(scan, "\xFF\xD9", 2)
+		found.end += end
 
 	case .OGG:
-		length := CalcOggLength(it.data[it.next+4:])
-		if length == -1 {
-			return {}, false
-		}
-		length      += 4
-		found.format = .OGG
-		found.begin  = it.next
-		found.end    = it.next + length
-		it.next     += length
-		return found, true
+		length, ok := CalcOggLength(scan)
+		if !ok do return {}, false
+		found.end += length
 	}
 
-	return
+	return found, true
 }
 
-CalcOggLength :: proc(data: []byte) -> int {
-	i := FindBytes(data, "OggS\x00\x04")
-	if i == -1 {
-		return -1
-	}
+CalcOggLength :: proc(data: []byte) -> (length: int, ok: bool) {
+	i         := FindBytes(data, "OggS\x00\x04") or_return
 	pageCount := int(data[i+26])
 	pages     := data[i+27 : i+27+pageCount]
 	pagesSum: int
 	for j in pages {
 		pagesSum += int(j)
 	}
-	return i + 26 + 1 + pageCount + pagesSum
+	return i + 26 + 1 + pageCount + pagesSum, true
 }
 
 // --------------------------------------------------------
@@ -267,6 +254,8 @@ Extract :: proc(catalog: Catalog) {
 	fileBuffer := mem.arena_allocator(&arena)
 
 	for key, entry in catalog {
+		defer free_all(context.temp_allocator)
+
 		if verbose do fmt.println(key)
 
 		molruPath := strings.concatenate({key, ".molru"}, context.temp_allocator)
@@ -279,20 +268,15 @@ Extract :: proc(catalog: Catalog) {
 		defer free_all(fileBuffer)
 
 		i: int
-		it := Iterator{data=molruFile}
+		it := CreateIterator(molruFile)
 		for found in GetData(&it) {
 			name := i < len(entry) ? entry[i] : fmt.tprintf("unknown_%8x.%v", found.begin, found.format)
-
 			if verbose do fmt.printfln("    [%v: %8x-%8x] %s", found.format, found.begin, found.end, name)
-
 			extractFile := Assert(os.join_path({extractDir, name}, context.temp_allocator), "Fail to join path")
 			Assert(os.write_entire_file(extractFile, molruFile[found.begin:found.end]), "Fail to save data")
-
 			i += 1
 		}
 		assert(i == len(entry))
-
-		free_all(context.temp_allocator)
 	}
 }
 
@@ -337,8 +321,8 @@ main :: proc() {
 	fmt.println("Parsing catalog data...")
 	BeginMeasure()
 	catalog := ParseCatalog(rawCatalog)
-	defer DeleteCatalog(catalog)
 	EndMeasure("Parsing")
+	defer DeleteCatalog(catalog)
 
 	// fmt.println("Catalog data:")
 	// PrintCatalog(catalog)
