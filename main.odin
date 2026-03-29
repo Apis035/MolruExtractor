@@ -155,7 +155,6 @@ Format :: enum {
 }
 
 Found :: struct {
-	format: Format,
 	begin, end: int,
 }
 
@@ -195,7 +194,6 @@ GetData :: proc(it: ^Iterator) -> (found: Found, ok: bool) {
 
 	found.begin  = it.next
 	found.end    = it.next
-	found.format = it.type
 
 	end: int
 	scan := it.data[it.next:]
@@ -209,7 +207,6 @@ GetData :: proc(it: ^Iterator) -> (found: Found, ok: bool) {
 			case BytesEqual(scan, "OggS\x00\x02"): it.type  = .OGG
 			case: panic("Unknown molru data file format")
 		}
-		return {}, false
 
 	case .PNG:
 		end, ok = FindBytes(scan, "\x89PNG")
@@ -270,8 +267,8 @@ Extract :: proc(catalog: Catalog) {
 		i: int
 		it := CreateIterator(molruFile)
 		for found in GetData(&it) {
-			name := i < len(entry) ? entry[i] : fmt.tprintf("unknown_%8x.%v", found.begin, found.format)
-			if verbose do fmt.printfln("    [%v: %8x-%8x] %s", found.format, found.begin, found.end, name)
+			name := i < len(entry) ? entry[i] : fmt.tprintf("unknown_%8x.%v", found.begin, it.type)
+			if verbose do fmt.printfln("    [%v: %8x-%8x] %s", it.type, found.begin, found.end, name)
 			extractFile := Assert(os.join_path({extractDir, name}, context.temp_allocator), "Fail to join path")
 			Assert(os.write_entire_file(extractFile, molruFile[found.begin:found.end]), "Fail to save data")
 			i += 1
@@ -293,7 +290,7 @@ main :: proc() {
 	// os.change_directory("D:/SteamLibrary/steamapps/common/BlueArchive")
 
 	fmt.println("---------------------------------")
-	fmt.println("MolruExtractor v1.0 - 2026.04")
+	fmt.println("MolruExtractor v1.1 - 2026.04")
 	fmt.println("github.com/Apis035/MolruExtractor")
 	fmt.println("---------------------------------")
 
