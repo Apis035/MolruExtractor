@@ -5,7 +5,10 @@ import "base:runtime"
 import "core:fmt"
 import "core:mem"
 import "core:os"
+import "core:strconv"
 import "core:strings"
+import "core:sync"
+import "core:thread"
 import "core:time"
 
 // --------------------------------------------------------
@@ -242,18 +245,28 @@ CalcOggLength :: proc(data: []byte) -> (length: int, ok: bool) {
 
 EXTRACT_DIRECTORY :: "MolruExtract"
 
-Extract :: proc(catalog: Catalog) {
-	memBuffer := make([]byte, 512 * mem.Megabyte, context.allocator)
-	defer delete(memBuffer, context.allocator)
+ExtractTask :: proc(catalog: ^Catalog, mutex: ^sync.Mutex, id: int) {
+	arena: mem.Dynamic_Arena
+	mem.dynamic_arena_init(&arena, context.allocator, context.allocator, block_size=4*mem.Megabyte, alignment=4*mem.Megabyte)
+	defer mem.dynamic_arena_destroy(&arena)
+	fileBuffer := mem.dynamic_arena_allocator(&arena)
 
-	arena: mem.Arena
-	mem.arena_init(&arena, memBuffer)
-	fileBuffer := mem.arena_allocator(&arena)
+	for {
+		key:   string
+		entry: CatalogEntry
 
-	for key, entry in catalog {
+		if sync.mutex_guard(mutex) {
+			if len(catalog) == 0 do break
+			for k, v in catalog {
+				key, entry = k, v
+				break
+			}
+			delete_key(catalog, key)
+		}
+
 		defer free_all(context.temp_allocator)
 
-		if verbose do fmt.println(key)
+		if verbose2 do fmt.printfln("[THREAD %02d] %s", id, key)
 
 		molruPath := strings.concatenate({key, ".molru"}, context.temp_allocator)
 		os.exists(molruPath) or_continue
@@ -268,7 +281,7 @@ Extract :: proc(catalog: Catalog) {
 		it := CreateIterator(molruFile)
 		for found in GetData(&it) {
 			name := i < len(entry) ? entry[i] : fmt.tprintf("unknown_%8x.%v", found.begin, it.type)
-			if verbose do fmt.printfln("    [%v: %8x-%8x] %s", it.type, found.begin, found.end, name)
+			if verbose do fmt.printfln("[THREAD %02d] [%v: %8x-%8x] %s", id, it.type, found.begin, found.end, name)
 			extractFile := Assert(os.join_path({extractDir, name}, context.temp_allocator), "Fail to join path")
 			Assert(os.write_entire_file(extractFile, molruFile[found.begin:found.end]), "Fail to save data")
 			i += 1
@@ -277,13 +290,31 @@ Extract :: proc(catalog: Catalog) {
 	}
 }
 
+Extract :: proc(catalog: Catalog) {
+	catalog := catalog
+
+	mutex: sync.Mutex
+	threads := make([]^thread.Thread, threadNum, context.allocator)
+	defer delete(threads, context.allocator)
+
+	for i in 0..<threadNum {
+		threads[i] = thread.create_and_start_with_poly_data3(&catalog, &mutex, i+1, ExtractTask)
+	}
+	defer for t in threads {
+		thread.destroy(t)
+	}
+	thread.join_multiple(..threads[:])
+}
+
 // --------------------------------------------------------
 
 verbose   := true
+verbose2  := true
 skipBgm   := false
 skipVoice := false
 skipImage := false
 saveCache := false
+threadNum := 0
 
 main :: proc() {
 	// For quick testing
@@ -294,21 +325,30 @@ main :: proc() {
 	fmt.println("github.com/Apis035/MolruExtractor")
 	fmt.println("---------------------------------")
 
-	for arg in os.args do switch arg {
+	for arg, i in os.args do switch arg {
 	case "-nb", "-no-bgm":     skipBgm   = true
 	case "-nv", "-no-voice":   skipVoice = true
 	case "-ni", "-no-image":   skipImage = true
 	case "-s",  "-save-cache": saveCache = true
+	case "-t",  "-threads":    threadNum = strconv.parse_int(os.args[i+1]) or_else panic("Invalid value for -t option")
 	case "-q",  "-quiet":      verbose   = false
+	case "-qq":                verbose, verbose2 = false, false
 	case "/?", "-?", "-h", "-help":
 		fmt.println("Usage:", os.args[0], "[option]")
 		fmt.println("Options:")
 		fmt.println("  -nb, -no-bgm        Skip extracting BGM.")
 		fmt.println("  -nv, -no-voice      Skip extracting voice.")
 		fmt.println("  -ni, -no-image      Skip extracting image.")
-		fmt.println("  -s,  -save-cache    Save cached catalog data")
-		fmt.println("  -q,  -quiet         Don't print processing logs. Improves extracting speed.")
+		fmt.println("  -s,  -save-cache    Save cached catalog data.")
+		fmt.println("  -t,  -threads       Set amount of thread to use for extracting. Defaults to processor core count.")
+		fmt.println("                      Setting this to a number higher than processor core count will slow down processing.")
+		fmt.println("  -q,  -quiet         Suppress processing logs. Improves extracting speed.")
+		fmt.println("  -qq                 Suppress more processing logs.")
 		return
+	}
+
+	if threadNum <= 0 {
+		threadNum = os.get_processor_core_count()
 	}
 
 	fmt.println("Getting catalog data...")
