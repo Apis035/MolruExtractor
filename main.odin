@@ -351,6 +351,8 @@ main :: proc() {
 		threadNum = os.get_processor_core_count()
 	}
 
+	fmt.println("Processing with", threadNum, "threads.")
+
 	fmt.println("Getting catalog data...")
 	rawCatalog := Assert(os.read_entire_file(CATALOG_FILE, context.allocator), "Fail to open catalog file")
 	defer delete(rawCatalog, context.allocator)
