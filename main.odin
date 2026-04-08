@@ -2,10 +2,12 @@
 package main
 
 import "base:runtime"
+import "core:c/libc"
 import "core:fmt"
 import "core:mem"
 import "core:os"
 import "core:strings"
+import "core:sys/windows"
 import "core:time"
 
 // --------------------------------------------------------
@@ -36,6 +38,29 @@ BeginMeasure :: proc() {
 EndMeasure :: proc(msg: string) {
 	totalTime := time.duration_seconds(time.since(measureTime))
 	fmt.printfln("%s done in %.3f seconds", msg, totalTime)
+}
+
+// --------------------------------------------------------
+
+LaunchedFromGUI :: proc() -> bool {
+	when ODIN_OS == .Windows {
+		procId: windows.DWORD
+		hwnd := windows.GetConsoleWindow()
+		windows.GetWindowThreadProcessId(hwnd, &procId)
+		return windows.GetCurrentProcessId() == procId
+	} else {
+		return !os.is_tty(os.stdin)
+	}
+}
+
+when ODIN_OS == .Windows {
+    foreign import "system:libucrt.lib"
+    foreign { _getwch :: proc "c" () -> int --- }
+}
+
+Pause :: proc() {
+    getwch :: _getwch when ODIN_OS == .Windows else libc.getwchar()
+    getwch()
 }
 
 // --------------------------------------------------------
@@ -333,4 +358,9 @@ main :: proc() {
 	BeginMeasure()
 	Extract(catalog)
 	EndMeasure("Extracting")
+
+	if LaunchedFromGUI() {
+		fmt.println("Press any key to exit...")
+		Pause()
+	}
 }
